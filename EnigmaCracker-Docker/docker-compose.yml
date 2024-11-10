@@ -1,0 +1,9 @@
+version: '3.8'
+services:
+  enigmacracker:
+    build: .
+    environment:
+      - ETHERSCAN_API_KEY=RIACQZ3YQ4XHDCZWMC1TCHN4WP3ZR2CSF7
+      
+    volumes:
+      - ./data:/usr/src/app/data
