@@ -2,3 +2,4 @@ bip-utils
 aiohttp
 python-dotenv
 requests
+aiogram

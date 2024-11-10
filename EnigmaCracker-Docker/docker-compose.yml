@@ -2,16 +2,14 @@ version: "3.8"
 services:
   wallet_checker:
     build: .
+    
     environment:
-      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
-      - CHAT_ID=${CHAT_ID}
-      - ELECTRUMX_SERVER_URL=${ELECTRUMX_SERVER_URL}
+      - ELECTRUMX_SERVER_URL=http://localhost:8000
+      - TELEGRAM_BOT_TOKEN=7706620947:AAGLGdTIKi4dB3irOtVmHD57f1Xxa8-ZIcs
+      - TELEGRAM_CHAT_ID=1596333326
     deploy:
       replicas: 16  # 16 Instanzen für 16 Kerne
-    resources:
-      limits:
-        cpus: "16.0"  # Maximale Nutzung von 16 Kernen
-        memory: "4G"   # Jeder Container bekommt 4 GB RAM zugewiesen (pass es an, je nach Bedarf)
+    
     volumes:
       - .:/app
     restart: unless-stopped
