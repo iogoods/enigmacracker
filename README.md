@@ -218,3 +218,27 @@ ADA: addr1q9rans3fgyr6wz23scnuvycgwzh8s6q4h4jfsml3u26ly0j8m8pzjsg85uy4rp38ccfssu
 USDT (ETH Network): 0xD8E91636cc6F55221545BFB7e1E417f0D2242d17
 
 `Star and watch the repo for updates, and your support is greatly appreciated!`
+
+
+
+
+
+Starten des Containers
+Docker-Container starten:
+
+Führe den folgenden Befehl aus, um das Docker-Image zu bauen und den Container zu starten:
+bash
+Code kopieren
+docker-compose up --build
+Logs anzeigen:
+
+Verwende diesen Befehl, um die Logs des Containers in Echtzeit zu sehen:
+bash
+Code kopieren
+docker-compose logs -f
+Skalierung der Instanzen:
+
+Du kannst die Anzahl der Instanzen anpassen, um die Leistung weiter zu optimieren:
+bash
+Code kopieren
+docker-compose scale wallet_checker=16

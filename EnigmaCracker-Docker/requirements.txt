@@ -1,4 +1,4 @@
-requests
-bip_utils
+bip-utils
+aiohttp
 python-dotenv
-jsonrpcclient
+requests

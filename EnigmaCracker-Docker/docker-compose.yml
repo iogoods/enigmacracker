@@ -1,9 +1,17 @@
-version: '3.8'
+version: "3.8"
 services:
-  enigmacracker:
+  wallet_checker:
     build: .
     environment:
-      - ETHERSCAN_API_KEY=RIACQZ3YQ4XHDCZWMC1TCHN4WP3ZR2CSF7
-      
+      - TELEGRAM_TOKEN=${TELEGRAM_TOKEN}
+      - CHAT_ID=${CHAT_ID}
+      - ELECTRUMX_SERVER_URL=${ELECTRUMX_SERVER_URL}
+    deploy:
+      replicas: 16  # 16 Instanzen für 16 Kerne
+    resources:
+      limits:
+        cpus: "16.0"  # Maximale Nutzung von 16 Kernen
+        memory: "4G"   # Jeder Container bekommt 4 GB RAM zugewiesen (pass es an, je nach Bedarf)
     volumes:
-      - ./data:/usr/src/app/data
+      - .:/app
+    restart: unless-stopped

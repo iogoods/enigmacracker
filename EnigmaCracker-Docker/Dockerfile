@@ -1,15 +1,17 @@
-# Use an official Python runtime as a parent image
-FROM python:3.9
+# Verwende das Python 3.11 Slim-Image
+FROM python:3.11-slim
 
-# Set the working directory in the container
-WORKDIR /usr/src/app
+# Setze das Arbeitsverzeichnis im Container
+WORKDIR /app
 
-# Copy the current directory contents into the container at /usr/src/app
-COPY . .
+# Kopiere alle Dateien in den Container
+COPY . /app
 
-RUN pip install --upgrade pip
-# Install any needed packages specified in requirements.txt
-RUN python3 -m pip install --no-cache-dir -r requirements.txt
+# Installiere alle notwendigen Python-Pakete
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Setze Umgebungsvariablen
+ENV ELECTRUMX_SERVER_URL="http://localhost:8000"  
 
 # Run the script when the container launches
-CMD ["python", "./EC.py"]
+CMD ["python", "enigmacracker.py"]
