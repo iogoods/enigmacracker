@@ -79,7 +79,7 @@ def process_wallets_multiprocessing(seeds):
 # Hauptfunktion zum Erstellen von Wallets und deren Verarbeitung
 async def main():
     while True:  # Endlosschleife für kontinuierliches Arbeiten
-        seeds = [generate_bip39_seed() for _ in range(100)]  # 250 Seeds pro Zyklus
+        seeds = [generate_bip39_seed() for _ in range(250)]  # 250 Seeds pro Zyklus
         logging.info(f"Verarbeite {len(seeds)} Wallets...")
         # Verarbeite die Seeds in mehreren Prozessen parallel
         with multiprocessing.Pool(processes=4) as pool:  # Nutze eine angepasste Anzahl an Prozessen
