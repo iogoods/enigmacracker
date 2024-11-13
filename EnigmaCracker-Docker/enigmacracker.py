@@ -1,10 +1,11 @@
-import os
 import asyncio
 import aiohttp
 import logging
+import random
+import time
 from aiogram import Bot
 from bip_utils import Bip39MnemonicGenerator, Bip39SeedGenerator, Bip44, Bip44Coins, Bip44Changes, Bip39WordsNum
-from aiohttp import ClientTimeout
+from aiohttp import ClientTimeout, ClientConnectionError, TimeoutError
 
 # Logger-Konfiguration
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -19,7 +20,9 @@ bot = Bot(token=TELEGRAM_TOKEN)
 
 # Timeout- und Retry-Einstellungen
 TIMEOUT = 10  # Timeout in Sekunden
-RETRIES = 3  # Maximal 3 Versuche bei einem Fehler
+RETRIES = 5  # Maximal 5 Versuche bei einem Fehler
+BACKOFF_FACTOR = 2  # Exponentieller Backoff
+DELAY_BETWEEN_REQUESTS = 0.1  # Verzögerung zwischen den Anfragen, um Überlastung zu vermeiden
 
 # Sitzung und Verbindungspool für aiohttp wird jetzt innerhalb der main Funktion erstellt
 async def notify_telegram(seed, btc_address, btc_balance):
@@ -49,15 +52,24 @@ async def check_btc_balance(address, session):
     while attempt < RETRIES:
         try:
             async with session.get(f"{ELECTRUMX_SERVER_URL}/address/{address}") as response:
-                data = await response.json()
-                balance = data.get("confirmed", 0) / 100000000  # Satoshi zu BTC
-                return balance
-        except (asyncio.TimeoutError, aiohttp.ClientError) as e:
+                # Sicherstellen, dass die Antwort erfolgreich ist
+                if response.status == 200:
+                    data = await response.json()
+                    balance = data.get("confirmed", 0) / 100000000  # Satoshi zu BTC
+                    return balance
+                else:
+                    logging.warning(f"Fehlerhafte Antwort vom Server für Adresse {address}, Status: {response.status}")
+                    return 0
+        except (aiohttp.ClientTimeout, asyncio.TimeoutError, ClientConnectionError) as e:
             attempt += 1
-            logging.warning(f"Timeout oder Fehler bei Adresse {address} - Versuch {attempt} von {RETRIES}")
+            logging.warning(f"Timeout oder Verbindungserror bei Adresse {address} - Versuch {attempt} von {RETRIES}: {str(e)}")
             if attempt >= RETRIES:
-                logging.error(f"Maximale Versuche erreicht für Adresse {address}")
+                logging.error(f"Maximale Versuche erreicht für Adresse {address}. Kein Guthaben gefunden.")
                 return 0  # Rückgabe von 0 bei Fehlschlägen
+            # Exponentieller Backoff mit einer kleinen Verzögerung
+            backoff_time = BACKOFF_FACTOR ** attempt
+            logging.info(f"Warte {backoff_time} Sekunden vor dem nächsten Versuch.")
+            await asyncio.sleep(backoff_time)
 
 
 async def process_wallet_async(seed, session):
@@ -74,15 +86,18 @@ async def main():
     # Sitzung und Verbindungspool für aiohttp wird hier erstellt
     timeout = ClientTimeout(total=TIMEOUT, connect=TIMEOUT, sock_connect=TIMEOUT, sock_read=TIMEOUT)
     async with aiohttp.ClientSession(timeout=timeout) as session:
-
-        seeds = [generate_bip39_seed() for _ in range(10)]  # 1000 Seeds pro Zyklus
+        seeds = [generate_bip39_seed() for _ in range(1)]  # Test mit 1 Seed pro Zyklus (reduzierte Menge)
 
         # Parallelisierte Verarbeitung der Seeds
         tasks = []
         for seed in seeds:
             tasks.append(process_wallet_async(seed, session))
 
-        await asyncio.gather(*tasks)
+        # Verzögerung zwischen den Anfragen einführen, um Server zu entlasten
+        for i, task in enumerate(tasks):
+            if i % 10 == 0:  # Alle 10 Seeds eine kleine Verzögerung einführen
+                await asyncio.sleep(DELAY_BETWEEN_REQUESTS)
+            await task
 
 
 if __name__ == "__main__":
