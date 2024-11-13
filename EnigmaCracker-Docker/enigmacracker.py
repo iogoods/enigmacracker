@@ -12,7 +12,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # Telegram-Token und Chat-ID direkt im Code definieren
 TELEGRAM_TOKEN = "7706620947:AAGLGdTIKi4dB3irOtVmHD57f1Xxa8-ZIcs"
 CHAT_ID = "1596333326"
-ELECTRUMX_SERVER_URL = "http://localhost:50002"  # Beispiel-URL für ElectrumX-Server
+ELECTRUMX_SERVER_URL = "http://host.docker.internal:50002"   # Beispiel-URL für ElectrumX-Server
 
 bot = Bot(token=TELEGRAM_TOKEN)
 
