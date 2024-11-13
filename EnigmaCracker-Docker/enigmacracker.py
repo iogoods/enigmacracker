@@ -1,5 +1,5 @@
 import asyncio
-import aiohttp
+import requests  # Hier importieren wir die requests-Bibliothek
 import logging
 from aiogram import Bot
 from bip_utils import Bip39MnemonicGenerator, Bip39SeedGenerator, Bip44, Bip44Coins, Bip44Changes, Bip39WordsNum
