@@ -5,7 +5,8 @@ import random
 import time
 from aiogram import Bot
 from bip_utils import Bip39MnemonicGenerator, Bip39SeedGenerator, Bip44, Bip44Coins, Bip44Changes, Bip39WordsNum
-from aiohttp import ClientTimeout, ClientConnectionError, TimeoutError
+from aiohttp import ClientTimeout, ClientConnectionError
+import asyncio
 
 # Logger-Konfiguration
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
