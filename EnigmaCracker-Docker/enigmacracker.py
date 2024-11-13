@@ -40,11 +40,11 @@ def bip44_btc_address_from_seed(seed_phrase):
     return bip44_addr_ctx.PublicKey().ToAddress()
 
 # Funktion zum Abrufen der BTC-Balance unter Verwendung eines ElectrumX-Servers
-async def check_btc_balance(address, retries=3, delay=2):
+async def check_btc_balance(address, retries=5, delay=5, timeout=30):
     for attempt in range(retries):
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(f"{ELECTRUMX_SERVER_URL}/address/{address}", timeout=10) as response:
+                async with session.get(f"{ELECTRUMX_SERVER_URL}/address/{address}", timeout=30) as response:
                     data = await response.json()
                     balance = data.get("confirmed", 0) / 100000000  # Satoshi zu BTC
                     return balance
