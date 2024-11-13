@@ -1,26 +1,30 @@
+import aiohttp
+from aiogram import Bot
 import asyncio
-import requests  # Importiere die requests-Bibliothek
+from datetime import datetime, timedelta
+from bip_utils import Bip39MnemonicGenerator, Bip39SeedGenerator, Bip44, Bip44Coins, Bip44Changes, Bip39WordsNum
 import logging
 import time
-from aiogram import Bot
-from bip_utils import Bip39MnemonicGenerator, Bip39SeedGenerator, Bip44, Bip44Coins, Bip44Changes, Bip39WordsNum
 
-# Logger-Konfiguration
+# Logger configuration
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 logger = logging.getLogger()
 
-# Deine Telegram-Token und Chat-ID
+# Telegram credentials
 TELEGRAM_TOKEN = "7706620947:AAGLGdTIKi4dB3irOtVmHD57f1Xxa8-ZIcs"
-TELEGRAM_CHAT_ID = "1596333326"  # Deine Chat-ID
-ELECTRUMX_SERVER_URL = "http://85.215.178.149:50002"  # Beispiel-URL für ElectrumX-Server
+TELEGRAM_CHAT_ID = "1596333326"
 
-# Bot initialisieren
+# ElectrumX server URL
+ELECTRUMX_SERVER_URL = "http://127.0.0.1:50002"
+
+# Delay settings
+DELAY_BETWEEN_REQUESTS = 0.1  # Delay between wallet checks
+
+# Track the number of wallets scanned daily
+wallets_scanned_today = 0
+
+# Initialize the bot
 bot = Bot(token=TELEGRAM_TOKEN)
-
-# Timeout- und Retry-Einstellungen
-TIMEOUT = 10  # Timeout in Sekunden
-RETRIES = 5  # Maximal 5 Versuche bei einem Fehler
-DELAY_BETWEEN_REQUESTS = 0.1  # Verzögerung zwischen den Anfragen, um Überlastung zu vermeiden
 
 def generate_bip39_seed():
     """Generiere einen zufälligen BIP39 Seed"""
@@ -35,63 +39,62 @@ def bip44_btc_address_from_seed(seed_phrase):
     bip44_addr_ctx = bip44_chg_ctx.AddressIndex(0)
     return bip44_addr_ctx.PublicKey().ToAddress()
 
-def check_btc_balance(address):
-    """Überprüfe den BTC-Guthaben einer Adresse mit einem ElectrumX-Server"""
-    attempt = 0
-    while attempt < RETRIES:
-        try:
-            logger.info(f"Überprüfe Adresse {address}... Versuch {attempt + 1} von {RETRIES}")
-            response = requests.get(f"{ELECTRUMX_SERVER_URL}/address/{address}")
-            if response.status_code == 200:
-                data = response.json()
-                balance = data.get("confirmed", 0) / 100000000  # Satoshi zu BTC
-                logger.info(f"Balance für Adresse {address}: {balance} BTC")
+async def check_btc_balance_async(address):
+    """Check the BTC balance of an address asynchronously using ElectrumX server."""
+    async with aiohttp.ClientSession() as session:
+        url = f"{ELECTRUMX_SERVER_URL}/balance/{address}"
+        async with session.get(url) as response:
+            if response.status == 200:
+                data = await response.json()
+                balance = data.get("confirmed", 0) / 100000000  # Convert from Satoshi to BTC
                 return balance
-            else:
-                logger.warning(f"Fehlerhafte Antwort vom Server für Adresse {address}, Status: {response.status_code}")
-                return 0
-        except requests.exceptions.Timeout as e:
-            attempt += 1
-            logger.warning(f"Timeout bei Adresse {address} - Versuch {attempt} von {RETRIES}: {str(e)}")
-            if attempt >= RETRIES:
-                logger.error(f"Maximale Versuche erreicht für Adresse {address}. Kein Guthaben gefunden.")
-                return 0
-            # Verzögerung vor dem nächsten Versuch
-            time.sleep(2 ** attempt)  # Exponentieller Backoff
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Fehler bei der Anfrage für Adresse {address}: {str(e)}")
             return 0
 
-def notify_telegram(seed, btc_address, btc_balance):
-    """Benachrichtige Telegram bei einer gefundenen Wallet"""
-    message = f"⚠️ Wallet mit Balance gefunden!\n\nSeed: {seed}\nAdresse: {btc_address}\nBalance: {btc_balance} BTC"
-    bot.send_message(TELEGRAM_CHAT_ID, message)
-    logger.info(f"Telegram-Benachrichtigung gesendet für Adresse {btc_address} mit {btc_balance} BTC")
+async def notify_telegram_async(message):
+    """Send a message to Telegram asynchronously."""
+    await bot.send_message(TELEGRAM_CHAT_ID, message)
 
-def process_wallet(seed):
-    """Verarbeite einen einzelnen Wallet Seed synchron"""
-    logger.info(f"Verarbeite Wallet Seed: {seed}")
+async def process_wallet_async(seed):
+    """Process a single wallet asynchronously."""
+    global wallets_scanned_today
     btc_address = bip44_btc_address_from_seed(seed)
-    btc_balance = check_btc_balance(btc_address)
+    btc_balance = await check_btc_balance_async(btc_address)
+    wallets_scanned_today += 1  # Increment the wallet count
+    
+    # Notify if balance is found
     if btc_balance > 0:
-        logger.info(f"Wallet mit Balance gefunden: {btc_address} - Balance: {btc_balance} BTC")
-        notify_telegram(seed, btc_address, btc_balance)
-    else:
-        logger.info(f"Kein Guthaben für Adresse {btc_address}")
+        message = f"⚠️ Wallet with balance found!\n\nSeed: {seed}\nAddress: {btc_address}\nBalance: {btc_balance} BTC"
+        await notify_telegram_async(message)
 
-def main():
-    """Hauptfunktion zum Überprüfen von Wallets nacheinander"""
-    seeds = [generate_bip39_seed() for _ in range(10)]  # Test mit 10 Seeds
+async def daily_summary():
+    """Send a daily summary of the number of wallets scanned."""
+    global wallets_scanned_today
+    while True:
+        # Calculate time until midnight to schedule the summary
+        now = datetime.now()
+        next_run = (now + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+        await asyncio.sleep((next_run - now).total_seconds())
+        
+        # Send the daily summary
+        summary_message = f"📊 Daily Wallet Scan Summary:\nTotal wallets scanned today: {wallets_scanned_today}"
+        await notify_telegram_async(summary_message)
+        
+        # Reset the daily counter
+        wallets_scanned_today = 0
 
-    # Überprüfe die Wallets nacheinander
+async def main_async():
+    """Main function to scan wallets and handle daily summary notifications."""
+    # Generate a list of seeds to test
+    seeds = [generate_bip39_seed() for _ in range(10)]
+    
+    # Schedule the daily summary coroutine to run in the background
+    asyncio.create_task(daily_summary())
+    
+    # Scan wallets sequentially with delay
     for seed in seeds:
-        process_wallet(seed)
-        # Verzögerung zwischen den Anfragen
-        time.sleep(DELAY_BETWEEN_REQUESTS)
+        await process_wallet_async(seed)
+        await asyncio.sleep(DELAY_BETWEEN_REQUESTS)
 
 if __name__ == "__main__":
-    try:
-        logger.info("Starte das Script...")
-        main()
-    except KeyboardInterrupt:
-        logger.info("Script wurde manuell beendet")
+    # Run the main async loop
+    asyncio.run(main_async())
