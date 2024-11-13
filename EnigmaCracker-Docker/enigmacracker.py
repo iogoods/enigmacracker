@@ -75,7 +75,7 @@ async def main():
     timeout = ClientTimeout(total=TIMEOUT, connect=TIMEOUT, sock_connect=TIMEOUT, sock_read=TIMEOUT)
     async with aiohttp.ClientSession(timeout=timeout) as session:
 
-        seeds = [generate_bip39_seed() for _ in range(1000)]  # 1000 Seeds pro Zyklus
+        seeds = [generate_bip39_seed() for _ in range(100)]  # 1000 Seeds pro Zyklus
 
         # Parallelisierte Verarbeitung der Seeds
         tasks = []
