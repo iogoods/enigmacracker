@@ -36,12 +36,25 @@ def bip44_btc_address_from_seed(seed_phrase):
     bip44_addr_ctx = bip44_chg_ctx.AddressIndex(0)
     return bip44_addr_ctx.PublicKey().ToAddress()
 
-async def check_btc_balance(address):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(f"{ELECTRUMX_SERVER_URL}/address/{address}") as response:
-            data = await response.json()
-            balance = data.get("confirmed", 0) / 100000000  # Satoshi zu BTC
-            return balance
+
+async def check_btc_balance(address, retries=3, delay=5):
+    timeout = aiohttp.ClientTimeout(total=60)
+    for attempt in range(retries):
+        try:
+            logging.info(f"Attempt {attempt+1}: Checking balance for {address}")
+            async with aiohttp.ClientSession(timeout=timeout) as session:
+                async with session.get(f"{ELECTRUMX_SERVER_URL}/address/{address}") as response:
+                    data = await response.json()
+                    balance = data.get("confirmed", 0) / 100000000
+                    logging.info(f"Balance for {address}: {balance} BTC")  # Loggt das Ergebnis der Balance
+                    return balance
+        except aiohttp.ClientError as e:
+            logging.warning(f"Attempt {attempt+1} failed for {address}: {e}")
+            if attempt < retries - 1:
+                await asyncio.sleep(delay)
+            else:
+                raise
+
 
 async def process_wallet_async(seed):
     btc_address = bip44_btc_address_from_seed(seed)
@@ -55,7 +68,7 @@ def process_wallet_multiprocessing(seed):
 
 async def main():
     while True:  # Endlosschleife
-        seeds = [generate_bip39_seed() for _ in range(1000)]  # 1000 Seeds pro Zyklus
+        seeds = [generate_bip39_seed() for _ in range(500)]  # 500 Seeds pro Zyklus
         with multiprocessing.Pool() as pool:
             pool.map(process_wallet_multiprocessing, seeds)
 
