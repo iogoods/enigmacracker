@@ -5,6 +5,7 @@ import logging
 import multiprocessing
 from bip_utils import Bip39MnemonicGenerator, Bip39SeedGenerator, Bip44, Bip44Coins, Bip44Changes, Bip39WordsNum
 from aiogram import Bot
+from aiohttp import ClientSession, TCPConnector
 
 # Logger-Konfiguration
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -12,7 +13,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 # Telegram-Token und Chat-ID direkt im Code definieren
 TELEGRAM_TOKEN = "7706620947:AAGLGdTIKi4dB3irOtVmHD57f1Xxa8-ZIcs"
 CHAT_ID = "1596333326"
-ELECTRUMX_SERVER_URL = "http://85.215.178.149:50002"   # Beispiel-URL für ElectrumX-Server
+ELECTRUMX_SERVER_URL = "http://85.215.178.149:50002"  # Beispiel-URL für ElectrumX-Server
 
 bot = Bot(token=TELEGRAM_TOKEN)
 
@@ -36,25 +37,25 @@ def bip44_btc_address_from_seed(seed_phrase):
     bip44_addr_ctx = bip44_chg_ctx.AddressIndex(0)
     return bip44_addr_ctx.PublicKey().ToAddress()
 
-
-async def check_btc_balance(address, retries=3, delay=5):
-    timeout = aiohttp.ClientTimeout(total=60)
+async def check_btc_balance(address, retries=3, delay=2):
+    connector = TCPConnector(limit=50)  # Erhöht die parallelen Verbindungen
+    timeout = aiohttp.ClientTimeout(total=30)
+    
     for attempt in range(retries):
         try:
-            logging.info(f"Attempt {attempt+1}: Checking balance for {address}")
-            async with aiohttp.ClientSession(timeout=timeout) as session:
+            async with ClientSession(connector=connector, timeout=timeout) as session:
                 async with session.get(f"{ELECTRUMX_SERVER_URL}/address/{address}") as response:
                     data = await response.json()
-                    balance = data.get("confirmed", 0) / 100000000
-                    logging.info(f"Balance for {address}: {balance} BTC")  # Loggt das Ergebnis der Balance
+                    balance = data.get("confirmed", 0) / 100000000  # Satoshi zu BTC
                     return balance
         except aiohttp.ClientError as e:
             logging.warning(f"Attempt {attempt+1} failed for {address}: {e}")
             if attempt < retries - 1:
                 await asyncio.sleep(delay)
+                delay *= 2
             else:
-                raise
-
+                logging.error(f"Failed to retrieve balance for {address} after {retries} attempts")
+                return 0  # Rückgabe von 0 bei wiederholten Fehlern
 
 async def process_wallet_async(seed):
     btc_address = bip44_btc_address_from_seed(seed)
@@ -62,15 +63,25 @@ async def process_wallet_async(seed):
     if btc_balance > 0:
         logging.info(f"Wallet mit Balance gefunden: {btc_address} - Balance: {btc_balance} BTC")
         await notify_telegram(seed, btc_address, btc_balance)
+    else:
+        logging.info(f"Wallet ohne Balance überprüft: {btc_address}")
 
-def process_wallet_multiprocessing(seed):
-    asyncio.run(process_wallet_async(seed))
+async def process_wallets_batch(seeds):
+    tasks = [process_wallet_async(seed) for seed in seeds]
+    await asyncio.gather(*tasks)
+
+def process_wallets_multiprocessing(seeds):
+    asyncio.run(process_wallets_batch(seeds))
 
 async def main():
-    while True:  # Endlosschleife
-        seeds = [generate_bip39_seed() for _ in range(500)]  # 500 Seeds pro Zyklus
+    while True:
+        seeds = [generate_bip39_seed() for _ in range(1000)]
+        
+        batch_size = 100  # Batch-Größe festlegen
+        batches = [seeds[i:i + batch_size] for i in range(0, len(seeds), batch_size)]
+        
         with multiprocessing.Pool() as pool:
-            pool.map(process_wallet_multiprocessing, seeds)
+            pool.map(process_wallets_multiprocessing, batches)
 
 if __name__ == "__main__":
     asyncio.run(main())
