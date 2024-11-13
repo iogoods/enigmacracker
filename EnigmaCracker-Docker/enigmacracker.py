@@ -37,25 +37,22 @@ def bip44_btc_address_from_seed(seed_phrase):
     bip44_addr_ctx = bip44_chg_ctx.AddressIndex(0)
     return bip44_addr_ctx.PublicKey().ToAddress()
 
-async def check_btc_balance(address, retries=3, delay=2):
-    connector = TCPConnector(limit=50)  # Erhöht die parallelen Verbindungen
-    timeout = aiohttp.ClientTimeout(total=30)
-    
+async def check_btc_balance_with_retry(address, retries=3, delay=2):
     for attempt in range(retries):
         try:
-            async with ClientSession(connector=connector, timeout=timeout) as session:
-                async with session.get(f"{ELECTRUMX_SERVER_URL}/address/{address}") as response:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(f"{ELECTRUMX_SERVER_URL}/address/{address}", timeout=10) as response:
                     data = await response.json()
                     balance = data.get("confirmed", 0) / 100000000  # Satoshi zu BTC
                     return balance
-        except aiohttp.ClientError as e:
-            logging.warning(f"Attempt {attempt+1} failed for {address}: {e}")
-            if attempt < retries - 1:
-                await asyncio.sleep(delay)
-                delay *= 2
-            else:
-                logging.error(f"Failed to retrieve balance for {address} after {retries} attempts")
-                return 0  # Rückgabe von 0 bei wiederholten Fehlern
+        except asyncio.TimeoutError:
+            logging.warning(f"Timeout bei Versuch {attempt + 1} für Adresse {address}")
+            await asyncio.sleep(delay)  # Warten und dann erneut versuchen
+        except Exception as e:
+            logging.error(f"Fehler beim Abrufen der Balance für {address}: {str(e)}")
+            break  # Bei anderen Fehlern abbrechen
+    logging.error(f"Fehler bei allen Versuchen, die Balance für {address} abzurufen.")
+    return 0  # Rückgabe 0, wenn die Adresse nicht abgefragt werden konnte
 
 async def process_wallet_async(seed):
     btc_address = bip44_btc_address_from_seed(seed)
