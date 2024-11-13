@@ -8,7 +8,7 @@ services:
       - TELEGRAM_BOT_TOKEN=7706620947:AAGLGdTIKi4dB3irOtVmHD57f1Xxa8-ZIcs
       - TELEGRAM_CHAT_ID=1596333326
     deploy:
-      replicas: 16  # 16 Instanzen für 16 Kerne
+      replicas: 5  # 16 Instanzen für 16 Kerne
     
     volumes:
       - .:/app
