@@ -75,7 +75,7 @@ def process_wallets_multiprocessing(seeds):
 
 async def main():
     while True:
-        seeds = [generate_bip39_seed() for _ in range(1000)]
+        seeds = [generate_bip39_seed() for _ in range(500)]
         
         batch_size = 100  # Batch-Größe festlegen
         batches = [seeds[i:i + batch_size] for i in range(0, len(seeds), batch_size)]
