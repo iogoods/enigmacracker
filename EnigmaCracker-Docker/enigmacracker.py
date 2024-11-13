@@ -11,8 +11,8 @@ import time
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
 
 # Telegram-Token und Chat-ID direkt im Code definieren
-TELEGRAM_BOT_TOKEN=7706620947:AAGLGdTIKi4dB3irOtVmHD57f1Xxa8-ZIcs
-TELEGRAM_CHAT_ID=1596333326
+TELEGRAM_BOT_TOKEN = "7706620947:AAGLGdTIKi4dB3irOtVmHD57f1Xxa8-ZIcs"
+TELEGRAM_CHAT_ID = "1596333326"
 ELECTRUMX_SERVER_URL = "http://85.215.178.149:50002"
 
 bot = Bot(token=TELEGRAM_TOKEN)
