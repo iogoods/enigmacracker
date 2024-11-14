@@ -4,7 +4,7 @@ services:
     build: .
     
     environment:
-      - ELECTRUMX_SERVER_URL = "http://85.215.178.149:50002"
+      - ELECTRUMX_SERVER_URL = "http://85.215.178.149:50001"
       - TELEGRAM_BOT_TOKEN=7706620947:AAGLGdTIKi4dB3irOtVmHD57f1Xxa8-ZIcs
       - TELEGRAM_CHAT_ID=1596333326
    # deploy:
